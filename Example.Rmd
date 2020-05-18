@@ -1,0 +1,81 @@
+---
+title: "Example"
+author: "Krzysztof Ignasiak"
+date: "18 maja 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Loading needed files and libraries
+```{r, echo=FALSE}
+library(hash)
+library(MCS)
+library(forecast)
+source("PerformCalculation.R")
+source("Evaluation.R")
+source("Tools.R")
+```
+
+loading Data
+```{r, echo=FALSE}
+Data <- read_excel(file.choose())
+```
+
+Order data and calculate returns
+```{r}
+Time_series <- ts(Data, frequency=1)
+
+#order Obserwations from oldest to newest
+Time_series <-ts(rev(Time_series),frequency = 1)
+
+#CalculateReturns
+Returns <- CalculateReturns(Time_series)
+
+#Delete NaN Values From Returns
+Returns <- na.omit(Returns)
+
+```
+
+calculateVaRs for 95 % and window lengh 250
+
+```{r}
+Forecasts <-CalculateVaRs(Returns,.95,250,0.98)
+
+```
+
+```{r}
+n <- length(Returns)
+Evaluation <- EvaluateVaR(Returns[251:n],Forecasts,0.05,.95)
+print(ResultsToDataFrame(Evaluation))
+
+```
+
+choose Best
+
+```{r}
+Correct <- ChooseCorrect(Results = Evaluation, VARForecasts = Forecasts)
+Best <- ChooseTheBest(Correct,Returns[251:n],0.05)
+print(Best)
+```
+
+Testing with Diebold Mariano
+```{r}
+First_Forecast <- Forecasts$HybridHSNormalVaR
+second_forecast <- Forecasts$HybridHSNormalVaR
+
+First_Lost <-  LossVaR(Returns[251:n],(-1)*First_Forecast, which = "asymmetricLoss", type = "normal",tau = 0.05)
+Second_Lost <- LossVaR(Returns[251:n],(-1)*Second_Forecast, which = "asymmetricLoss", type = "normal",tau = 0.05)
+dm.test(
+  First_Lost,
+  Second_Lost,
+  alternative="less",
+  h = 1,
+  power = 2
+)
+
+```
+
+
